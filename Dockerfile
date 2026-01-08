@@ -67,9 +67,9 @@ RUN cd /tmp/llvm-project && \
     rm -rf /tmp/llvm-project
 
 # Setup usage of clang compiler
-RUN update-alternatives --install /usr/bin/clang clang /usr/local/llvm/bin/clang 100 && \
-    update-alternatives --install /usr/bin/clang++ clang /usr/local/llvm/bin/clang++ 100 && \
-    update-alternatives --install /usr/bin/clang-format clang /usr/local/llvm/bin/clang-format 100 && \
-    update-alternatives --install /usr/bin/clang-tidy clang /usr/local/llvm/bin/clang-tidy 100 && \
-    update-alternatives --install /usr/bin/run-clang-tidy clang /usr/local/llvm/bin/run-clang-tidy 100
+RUN update-alternatives --install /usr/bin/clang clang /usr/local/llvm/bin/clang 100 \
+    --slave /usr/bin/clang++ clang++ /usr/local/llvm/bin/clang++ \
+    --slave /usr/bin/clang-format clang-format /usr/local/llvm/bin/clang-format \
+    --slave /usr/bin/clang-tidy clang-tidy /usr/local/llvm/bin/clang-tidy \
+    --slave /usr/bin/run-clang-tidy run-clang-tidy /usr/local/llvm/bin/run-clang-tidy
 ENV CC=/usr/local/llvm/bin/clang CXX=/usr/local/llvm/bin/clang++
