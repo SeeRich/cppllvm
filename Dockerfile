@@ -29,8 +29,10 @@ RUN cd /tmp/zlib && \
     cmake --build build --config Release --target install --verbose && \
     rm -rf /tmp/zlib
 
-# TODO:
-# Add openmp to LLVM_ENABLE_RUNTIMES
+# IWYU (include-what-you-use)
+ARG IWYU_VERSION=clang_21
+ADD https://github.com/include-what-you-use/include-what-you-use.git#${IWYU_VERSION} /tmp/include-what-you-use
+
 ARG LLVM_VERSION=21.1.8
 ADD https://github.com/llvm/llvm-project.git#llvmorg-${LLVM_VERSION} /tmp/llvm-project
 # SEE: https://github.com/dslm4515/CMLFS/issues/12
@@ -45,6 +47,8 @@ RUN cd /tmp/llvm-project && \
         -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind;compiler-rt" \
         -DLLVM_ENABLE_ZSTD=ON \
         -DLLVM_ENABLE_ZLIB=ON \
+        -DLLVM_EXTERNAL_PROJECTS=iwyu \
+        -DLLVM_EXTERNAL_IWYU_SOURCE_DIR=/tmp/include-what-you-use \
         -DCMAKE_PREFIX_PATH=/usr/lib \
         -DLIBUNWIND_ENABLE_SHARED=OFF \
         -DLIBUNWIND_ENABLE_STATIC=ON \
@@ -66,10 +70,25 @@ RUN cd /tmp/llvm-project && \
     cmake --build build --target install --parallel && \
     rm -rf /tmp/llvm-project
 
+# Standalone build of openmp
+# Build fails above when adding openmp to LLVM_ENABLE_RUNTIMES
+# Installed into /usr because: could not get downstream cmake consumer to find it using find_package(OpenMP)...
+ADD https://github.com/llvm/llvm-project.git#llvmorg-${LLVM_VERSION} /tmp/llvm-project
+RUN cd /tmp/llvm-project/openmp && \
+    cmake -B build -S . -G Ninja \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DCMAKE_C_COMPILER=/usr/local/llvm/bin/clang \
+        -DCMAKE_CXX_COMPILER=/usr/local/llvm/bin/clang++ && \
+    cmake --build build --target install --parallel && \
+    rm -rf /tmp/llvm-project
+
 # Setup usage of clang compiler
 RUN update-alternatives --install /usr/bin/clang clang /usr/local/llvm/bin/clang 100 \
     --slave /usr/bin/clang++ clang++ /usr/local/llvm/bin/clang++ \
     --slave /usr/bin/clang-format clang-format /usr/local/llvm/bin/clang-format \
     --slave /usr/bin/clang-tidy clang-tidy /usr/local/llvm/bin/clang-tidy \
-    --slave /usr/bin/run-clang-tidy run-clang-tidy /usr/local/llvm/bin/run-clang-tidy
+    --slave /usr/bin/run-clang-tidy run-clang-tidy /usr/local/llvm/bin/run-clang-tidy \
+    --slave /usr/bin/include-what-you-use include-what-you-use /usr/local/llvm/bin/include-what-you-use
 ENV CC=/usr/local/llvm/bin/clang CXX=/usr/local/llvm/bin/clang++
